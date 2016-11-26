@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -19,14 +20,22 @@ const (
 	DEPOSIT  Action = "deposit"
 )
 
+const (
+	CURRENCY_FORMAT = "%d.%02d€"
+	MAJ_MIN         = 100
+	HEADER_SYMBOL   = "="
+	TIME_FORMAT     = "%02d. %s %04d %02d:%02d"
+	DB_NAME         = ".trdb"
+)
+
 var (
-	DatabasePath = filepath.Join(os.Getenv("HOME"), ".trdb")
+	DatabasePath = filepath.Join(os.Getenv("HOME"), DB_NAME)
 )
 
 type Value int
 
 func (v Value) String() string {
-	return fmt.Sprintf("%d,%02d€", v/100, v%100)
+	return fmt.Sprintf(CURRENCY_FORMAT, v/MAJ_MIN, v%MAJ_MIN)
 }
 
 func (v Value) Add(a Value) Value {
@@ -35,8 +44,8 @@ func (v Value) Add(a Value) Value {
 
 func Parse(in string) Value {
 	var maj, min int
-	fmt.Sscanf(in, "%d,%02d", &maj, &min)
-	return Value(maj*100 + min%100)
+	fmt.Sscanf(in, CURRENCY_FORMAT, &maj, &min)
+	return Value(maj*MAJ_MIN + min%MAJ_MIN)
 }
 
 type Transaction struct {
@@ -85,6 +94,13 @@ func openDatabase() (Database, error) {
 	return database, nil
 }
 
+func databaseExists() bool {
+	if _, err := os.Stat(DatabasePath); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
 func writeDatabase(database Database) error {
 	json, err := json.Marshal(database)
 	if err != nil {
@@ -108,19 +124,31 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "transaction"
 
+	console := bufio.NewReader(os.Stdin)
+
 	app.Commands = []cli.Command{
 		{
 			Name:  "init",
 			Usage: "Initialize the database",
 			Action: func(c *cli.Context) error {
+				if databaseExists() {
+					fmt.Print("A database already exists. Are you sure you want to do this? (y / N): ")
+					status := "n"
+					fmt.Scanf("%s")
+					if status != "y" {
+						fmt.Println("Action aborted.")
+						return nil
+					}
+				}
+
 				fmt.Print("Database name: ")
-				var name string
-				fmt.Scanf("%s\n", &name)
+				name, _ := console.ReadString('\n')
 				database := NewDatabase(name)
 				err := writeDatabase(database)
 				if err != nil {
 					return err
 				}
+
 				fmt.Printf("Created the database '%s'.\n", name)
 				return nil
 			},
@@ -132,15 +160,15 @@ func main() {
 				var name string
 				for name == "" {
 					fmt.Print("Transaction name: ")
-					fmt.Scanln(&name)
+					name, _ := console.ReadString('\n')
 					name = strings.TrimSpace(name)
 				}
 
 				var action Action
 				for action == "" {
 					fmt.Print("Transaction type (wd / dp): ")
-					fmt.Scanln(&action)
-					action = Action(strings.TrimSpace(string(action)))
+					actionString, _ := console.ReadString('\n')
+					action = Action(strings.TrimSpace(actionString))
 					if action == "wd" {
 						action = WITHDRAW
 					} else if action == "dp" {
@@ -150,11 +178,10 @@ func main() {
 					}
 				}
 
-				var amountString string
 				var amount Value
 				for amount == 0 {
 					fmt.Print("Transaction amount: ")
-					fmt.Scanln(&amountString)
+					amountString, _ := console.ReadString('\n')
 					amount = Parse(amountString)
 				}
 
@@ -164,7 +191,7 @@ func main() {
 					return err
 				}
 
-				fmt.Printf("Stored the %s transaction '%s' (%s)\n", action, name, amount.String())
+				fmt.Printf("Stored the %s transaction '%s' (%s).\n", action, name, amount.String())
 
 				return nil
 			},
@@ -206,5 +233,5 @@ func main() {
 }
 
 func formatTime(t time.Time) string {
-	return fmt.Sprintf("%02d. %s %04d %02d:%02d", t.Day(), t.Month(), t.Year(), t.Hour(), t.Minute())
+	return fmt.Sprintf(TIME_FORMAT, t.Day(), t.Month(), t.Year(), t.Hour(), t.Minute())
 }
