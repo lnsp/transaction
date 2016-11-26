@@ -123,6 +123,12 @@ func storeTransaction(transact Transaction) error {
 func main() {
 	app := cli.NewApp()
 	app.Name = "transaction"
+	app.Authors = []cli.Author{
+		{"Lennart Espe", "lennart@espe.tech"},
+	}
+	app.Copyright = "(c) 2016 Lennart Espe"
+	app.Usage = "A housekeeping book in your terminal."
+	app.Version = "0.1"
 
 	console := bufio.NewReader(os.Stdin)
 
