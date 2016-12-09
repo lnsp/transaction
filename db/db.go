@@ -105,7 +105,7 @@ func (db *Database) Store(transact Transaction) {
 
 // Delete a transaction at the given position.
 func (db *Database) Delete(ID int) error {
-	if ID > -1 && ID < db.Size() {
+	if ID < 0 || ID >= db.Size() {
 		return TransactionNotFound
 	}
 	db.Transactions = append(db.Transactions[:ID], db.Transactions[ID+1:]...)
@@ -114,7 +114,7 @@ func (db *Database) Delete(ID int) error {
 
 // Retrieve a transaction from the database.
 func (db *Database) Read(ID int) (Transaction, error) {
-	if ID > -1 && ID < db.Size() {
+	if ID < 0 || ID >= db.Size() {
 		return Transaction{}, TransactionNotFound
 	}
 	return db.Transactions[ID], nil
