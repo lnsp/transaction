@@ -85,13 +85,20 @@ func storeAction(c *cli.Context) error {
 	return nil
 }
 
+func limitString(s string, l int) string {
+	if len(s) < l {
+		return fmt.Sprintf("%"+strconv.Itoa(l)+"s", s)
+	}
+	return string([]rune(s)[:l])
+}
+
 func listAction(c *cli.Context) error {
 	database, err := db.Open()
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("%28s  ", database.Name)
+	fmt.Printf("%33s  ", database.Name)
 	for i := 0; i < 46; i++ {
 		fmt.Print("=")
 	}
@@ -104,7 +111,7 @@ func listAction(c *cli.Context) error {
 			return err
 		}
 		idString := "[#" + strconv.Itoa(ID) + "]"
-		fmt.Printf("%6s  On %16s %16s :: %-8s %12s\n", idString, formatTime(transact.Date), transact.Name, transact.Type, transact.Amount)
+		fmt.Printf("%6s  On %s %s :: %-8s %12s\n", idString, limitString(formatTime(transact.Date), 24), limitString(transact.Name, 20), transact.Type, transact.Amount)
 
 		switch transact.Type {
 		case db.WITHDRAW:
@@ -114,7 +121,7 @@ func listAction(c *cli.Context) error {
 		}
 	}
 
-	fmt.Printf("%64s------------\n%64s%12s\n", "", "", balance)
+	fmt.Printf("%69s------------\n%69s%12s\n", "", "", balance)
 	return nil
 }
 
