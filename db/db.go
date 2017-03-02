@@ -12,14 +12,14 @@ import (
 
 const (
 	// The default database suffix.
-	DB_NAME = ".trdb"
+	defaultDatabaseSuffix = ".trdb"
 )
 
 var (
 	// Transaction could not be found (maybe invalid ID?)
-	TransactionNotFound = errors.New("Not found: The transaction does not exist.")
+	errTransactionNotFound = errors.New("not found: the transaction does not exist")
 	// The default database storage path.
-	DatabasePath = filepath.Join(os.Getenv("HOME"), DB_NAME)
+	defaultDatabasePath = filepath.Join(os.Getenv("HOME"), defaultDatabaseSuffix)
 )
 
 type Currency struct {
@@ -35,23 +35,45 @@ var (
 type Action string
 
 const (
-	// A withdrawal, taking money from the account.
-	WITHDRAW Action = "withdraw"
-	// A deposit, storing money on the account.
-	DEPOSIT Action = "deposit"
+	// Withdraw takes money from the account.
+	Withdraw Action = "withdraw"
+	// Deposit stores money on the account.
+	Deposit Action = "deposit"
 )
 
 // Value is a specific amount of money.
 type Value int
 
-// Stringifies the value in a currency format.
-func (v Value) String() string {
-	return fmt.Sprintf(DefaultCurrency.Format, v/DefaultCurrency.Ratio, v%DefaultCurrency.Ratio)
+const (
+	// ZeroValue represents a 0.
+	ZeroValue = Value(0)
+)
+
+func abs(x Value) Value {
+	if x < ZeroValue {
+		return -x
+	}
+	return x
 }
 
-// Adds more money onto the existing value.
+// Stringifies the value in a currency format.
+func (v Value) String() string {
+	return fmt.Sprintf(DefaultCurrency.Format, v/DefaultCurrency.Ratio, abs(v%DefaultCurrency.Ratio))
+}
+
+// Add more money onto the existing value.
 func (v Value) Add(a Value) Value {
 	return v + a
+}
+
+// Smaller compares if the value is smaller than the argument.
+func (v Value) Smaller(a Value) bool {
+	return int(v) < int(a)
+}
+
+// Larger compares if the value is larger than the argument.
+func (v Value) Larger(a Value) bool {
+	return int(v) > int(a)
 }
 
 // Parse a string into a pile of money.
@@ -61,7 +83,7 @@ func Parse(in string) Value {
 	return Value(Value(maj)*DefaultCurrency.Ratio + Value(min)%DefaultCurrency.Ratio)
 }
 
-// A virtual transaction.
+// Transaction stores a virtual transaction.
 type Transaction struct {
 	Name   string    `json:"name"`
 	Amount Value     `json:"amount"`
@@ -79,7 +101,7 @@ func NewTransaction(name string, action Action, amount Value) Transaction {
 	}
 }
 
-// A database with a name and a list of transactions.
+// Database with a name and a list of transactions.
 type Database struct {
 	Name         string        `json:"name"`
 	Transactions []Transaction `json:"transaction"`
@@ -106,7 +128,7 @@ func (db *Database) Store(transact Transaction) {
 // Delete a transaction at the given position.
 func (db *Database) Delete(ID int) error {
 	if ID < 0 || ID >= db.Size() {
-		return TransactionNotFound
+		return errTransactionNotFound
 	}
 	db.Transactions = append(db.Transactions[:ID], db.Transactions[ID+1:]...)
 	return nil
@@ -115,7 +137,7 @@ func (db *Database) Delete(ID int) error {
 // Retrieve a transaction from the database.
 func (db *Database) Read(ID int) (Transaction, error) {
 	if ID < 0 || ID >= db.Size() {
-		return Transaction{}, TransactionNotFound
+		return Transaction{}, errTransactionNotFound
 	}
 	return db.Transactions[ID], nil
 }
@@ -124,7 +146,7 @@ func (db *Database) Read(ID int) (Transaction, error) {
 func Open() (Database, error) {
 	var database Database
 
-	bytes, err := ioutil.ReadFile(DatabasePath)
+	bytes, err := ioutil.ReadFile(defaultDatabasePath)
 	if err != nil {
 		return Database{}, err
 	}
@@ -137,7 +159,7 @@ func Open() (Database, error) {
 
 // Checks if a database already exists.
 func Exists() bool {
-	if _, err := os.Stat(DatabasePath); os.IsNotExist(err) {
+	if _, err := os.Stat(defaultDatabasePath); os.IsNotExist(err) {
 		return false
 	}
 	return true
@@ -149,7 +171,7 @@ func Write(database Database) error {
 	if err != nil {
 		return err
 	}
-	ioutil.WriteFile(DatabasePath, json, 0644)
+	ioutil.WriteFile(defaultDatabasePath, json, 0644)
 	return nil
 }
 
