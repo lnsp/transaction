@@ -22,16 +22,22 @@ var (
 	defaultDatabasePath = filepath.Join(os.Getenv("HOME"), defaultDatabaseSuffix)
 )
 
+// Currency stores information about a currency.
 type Currency struct {
 	Name, Format string
 	Ratio        Value
 }
 
 var (
-	EURO            Currency = Currency{"Euro", "%d.%02d€", Value(100)}
-	DefaultCurrency          = EURO
+	// Euro currency
+	Euro = Currency{"Euro", "%d.%02d€", Value(100)}
+	// Dollar currency
+	Dollar = Currency{"Dollar", "%d.%02d$", Value(100)}
+	// DefaultCurrency for display
+	DefaultCurrency = Euro
 )
 
+// Action is a transaction type.
 type Action string
 
 const (
@@ -120,7 +126,7 @@ func (db *Database) Size() int {
 	return len(db.Transactions)
 }
 
-// Stores the transaction in the database.
+// Store the transaction in the database.
 func (db *Database) Store(transact Transaction) {
 	db.Transactions = append(db.Transactions, transact)
 }
@@ -157,7 +163,7 @@ func Open() (Database, error) {
 	return database, nil
 }
 
-// Checks if a database already exists.
+// Exists is true if the database already exists.
 func Exists() bool {
 	if _, err := os.Stat(defaultDatabasePath); os.IsNotExist(err) {
 		return false
@@ -165,7 +171,7 @@ func Exists() bool {
 	return true
 }
 
-// Writes the database to the hard drive.
+// Write the database to the hard drive.
 func Write(database Database) error {
 	json, err := json.Marshal(database)
 	if err != nil {
@@ -175,7 +181,7 @@ func Write(database Database) error {
 	return nil
 }
 
-// Stores the transaction in the existing database.
+// Store the transaction in the existing database.
 func Store(transact Transaction) error {
 	database, err := Open()
 	if err != nil {
@@ -186,7 +192,7 @@ func Store(transact Transaction) error {
 	return err
 }
 
-// Retrieves a transaction from an existing database.
+// Get a transaction from an existing database.
 func Get(ID int) (Transaction, error) {
 	database, err := Open()
 	if err != nil {
@@ -195,7 +201,7 @@ func Get(ID int) (Transaction, error) {
 	return database.Read(ID)
 }
 
-// Deletes a transaction from an existing database.
+// Delete a transaction from an existing database.
 func Delete(ID int) error {
 	database, err := Open()
 	if err != nil {
