@@ -33,6 +33,11 @@ const (
 	transactionTypeDeposit    = "dp"
 	transactionAmountField    = "Transaction amount: "
 	transactionSuccessMessage = "Stored the %s transaction '%s' (%s).\n"
+
+	wipeTransactionYes          = "y"
+	wipeTransactionNo           = "n"
+	wipeTransactionConfirmation = "\nAre you sure? (y / N) "
+	wipeTransactionSuccess      = "Transaction deleted."
 )
 
 var (
@@ -59,7 +64,6 @@ func initAction(c *cli.Context) error {
 			return nil
 		}
 	}
-
 	fmt.Print(databaseNameField)
 	name, _ := getInput()
 	database := db.NewDatabase(name)
@@ -67,7 +71,6 @@ func initAction(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 	fmt.Printf(createdDatabaseMessage, name)
 	return nil
 }
@@ -78,7 +81,6 @@ func storeAction(c *cli.Context) error {
 		fmt.Print(transactionNameField)
 		name, _ = getInput()
 	}
-
 	var action db.Action
 	for action == "" {
 		fmt.Print(transactionTypeField)
@@ -91,22 +93,18 @@ func storeAction(c *cli.Context) error {
 			action = ""
 		}
 	}
-
 	var amount db.Value
 	for amount == 0 {
 		fmt.Print(transactionAmountField)
 		amountString, _ := getInput()
 		amount = db.Parse(amountString)
 	}
-
 	transact := db.NewTransaction(name, action, amount)
 	err := db.Store(transact)
 	if err != nil {
 		return err
 	}
-
 	fmt.Printf(transactionSuccessMessage, action, name, amount.String())
-
 	return nil
 }
 
@@ -127,13 +125,11 @@ func getTableHeader(headerText string) string {
 
 func printTransactionTable(header string, transactions map[int]db.Transaction) {
 	fmt.Println(getTableHeader(header))
-
 	var ids []int
 	for i := range transactions {
 		ids = append(ids, i)
 	}
 	sort.Ints(ids)
-
 	var balance db.Value
 	for _, id := range ids {
 		transact := transactions[id]
@@ -147,7 +143,6 @@ func printTransactionTable(header string, transactions map[int]db.Transaction) {
 			balance = balance.Add(transact.Amount)
 		}
 	}
-
 	fmt.Printf("%69s------------\n%69s%12s\n", "", "", balance)
 }
 
@@ -156,7 +151,6 @@ func listAction(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 	idMap := make(map[int]db.Transaction)
 	startValue := database.Size() - c.Int("limit")
 	for id := database.Size() - 1; id >= 0 && id >= startValue; id-- {
@@ -166,7 +160,6 @@ func listAction(c *cli.Context) error {
 		}
 		idMap[id] = transact
 	}
-
 	header := fmt.Sprintf("%s (latest %d entries)", database.Name, len(idMap))
 	printTransactionTable(header, idMap)
 	return nil
@@ -177,36 +170,28 @@ func filterAction(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 	namePredicate, maxPredicate, minPredicate, typePredicate := c.String("name"), db.Parse(c.String("max")), db.Parse(c.String("min")), c.String("type")
 	header := fmt.Sprintf("%s (name='%s', min='%s', max='%s', type='%s')", database.Name, namePredicate, minPredicate, maxPredicate, typePredicate)
 	idMap := make(map[int]db.Transaction)
-
 	for id := 0; id < database.Size(); id++ {
 		transact, err := database.Read(id)
 		if err != nil {
 			return err
 		}
-
 		if namePredicate != "" && transact.Name != namePredicate {
 			continue
 		}
-
 		if maxPredicate != db.ZeroValue && maxPredicate.Smaller(transact.Amount) {
 			continue
 		}
-
 		if minPredicate != db.ZeroValue && minPredicate.Larger(transact.Amount) {
 			continue
 		}
-
 		if typePredicate != "" && ((isTypeDeposit(typePredicate) && transact.Type != db.Deposit) || (isTypeWithdraw(typePredicate) && transact.Type != db.Withdraw)) {
 			continue
 		}
-
 		idMap[id] = transact
 	}
-
 	printTransactionTable(header, idMap)
 	return nil
 }
@@ -216,29 +201,24 @@ func deleteAction(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 	transaction, err := db.Get(ID)
 	if err != nil {
 		return err
 	}
-
-	fmt.Print(transaction, "\nAre you sure? (y / N) ")
+	fmt.Print(transaction, wipeTransactionConfirmation)
 	confirmation, err := getInput()
 	if err != nil {
 		return err
 	}
-
-	if confirmation != "y" {
-		fmt.Println("Action aborted.")
+	if confirmation != wipeTransactionYes {
+		fmt.Println(abortedMessage)
 		return nil
 	}
-
 	err = db.Delete(ID)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("Transaction deleted.")
+	fmt.Println(wipeTransactionSuccess)
 	return nil
 }
 
@@ -251,7 +231,6 @@ func main() {
 	app.Copyright = "(c) 2016 Lennart Espe"
 	app.Usage = "A housekeeping book in your terminal."
 	app.Version = "0.2"
-
 	app.Commands = []cli.Command{
 		{
 			Name:   "init",
@@ -314,7 +293,6 @@ func main() {
 			},
 		},
 	}
-
 	app.Run(os.Args)
 }
 
