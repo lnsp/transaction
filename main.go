@@ -50,7 +50,7 @@ func isTypeWithdraw(text string) bool {
 }
 
 func initAction(c *cli.Context) error {
-	if db.Exists() {
+	if db.Exists() && !c.Bool("force") {
 		fmt.Print(wipeDatabaseConfirmation)
 		status := wipeDatabaseNo
 		fmt.Scanf("%s")
@@ -83,10 +83,9 @@ func storeAction(c *cli.Context) error {
 	for action == "" {
 		fmt.Print(transactionTypeField)
 		actionString, _ := getInput()
-		action = db.Action(actionString)
-		if action == transactionTypeWithdraw {
+		if isTypeWithdraw(actionString) {
 			action = db.Withdraw
-		} else if action == transactionTypeDeposit {
+		} else if isTypeDeposit(actionString) {
 			action = db.Deposit
 		} else {
 			action = ""
@@ -159,7 +158,8 @@ func listAction(c *cli.Context) error {
 	}
 
 	idMap := make(map[int]db.Transaction)
-	for id := 0; id < database.Size(); id++ {
+	startValue := database.Size() - c.Int("limit")
+	for id := database.Size() - 1; id >= 0 && id >= startValue; id-- {
 		transact, err := database.Read(id)
 		if err != nil {
 			return err
@@ -167,7 +167,8 @@ func listAction(c *cli.Context) error {
 		idMap[id] = transact
 	}
 
-	printTransactionTable(database.Name, idMap)
+	header := fmt.Sprintf("%s (latest %d entries)", database.Name, len(idMap))
+	printTransactionTable(header, idMap)
 	return nil
 }
 
@@ -256,6 +257,12 @@ func main() {
 			Name:   "init",
 			Usage:  "Initialize the database",
 			Action: initAction,
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "force, f",
+					Usage: "Disable any warnings",
+				},
+			},
 		},
 		{
 			Name:   "store",
@@ -266,6 +273,13 @@ func main() {
 			Name:   "list",
 			Usage:  "List all transactions",
 			Action: listAction,
+			Flags: []cli.Flag{
+				cli.IntFlag{
+					Name:  "limit, l",
+					Value: 10,
+					Usage: "Amount of entries shown",
+				},
+			},
 		},
 		{
 			Name:   "delete",
