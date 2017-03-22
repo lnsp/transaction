@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/lnsp/transaction/db"
+	"github.com/metakeule/fmtdate"
 	"github.com/urfave/cli"
 )
 
@@ -29,6 +30,8 @@ const (
 
 	transactionNameField      = "Transaction name: "
 	transactionTypeField      = "Transaction type (wd / dp): "
+	transactionDateField      = "Transaction date: "
+	transactionDateFormat     = "D.M.YYYY"
 	transactionTypeWithdraw   = "wd"
 	transactionTypeDeposit    = "dp"
 	transactionAmountField    = "Transaction amount: "
@@ -81,6 +84,13 @@ func storeAction(c *cli.Context) error {
 		fmt.Print(transactionNameField)
 		name, _ = getInput()
 	}
+	var date time.Time
+	fmt.Print(transactionDateField)
+	dateStr, _ := getInput()
+	date, err := fmtdate.Parse(transactionDateFormat, dateStr)
+	if err != nil {
+		date = time.Now()
+	}
 	var action db.Action
 	for action == "" {
 		fmt.Print(transactionTypeField)
@@ -99,8 +109,8 @@ func storeAction(c *cli.Context) error {
 		amountString, _ := getInput()
 		amount = db.Parse(amountString)
 	}
-	transact := db.NewTransaction(name, action, amount)
-	err := db.Store(transact)
+	transact := db.NewTransaction(name, action, amount, date)
+	err = db.Store(transact)
 	if err != nil {
 		return err
 	}

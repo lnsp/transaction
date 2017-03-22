@@ -98,12 +98,12 @@ type Transaction struct {
 }
 
 // NewTransaction initializes a new transaction.
-func NewTransaction(name string, action Action, amount Value) Transaction {
+func NewTransaction(name string, action Action, amount Value, date time.Time) Transaction {
 	return Transaction{
 		Name:   name,
 		Amount: amount,
 		Type:   action,
-		Date:   time.Now(),
+		Date:   date,
 	}
 }
 
